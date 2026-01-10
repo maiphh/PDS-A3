@@ -2,10 +2,8 @@
 __pycache__
 .ipynb_checkpoints
 
-models/
-logs/
-evaluations/
-pipeline/output/models/
-pipeline/output/logs/
-pipeline/output/evaluations/
+models
+logs
+evaluations
+
 *.pyc
