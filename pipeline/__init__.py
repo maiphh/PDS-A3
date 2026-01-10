@@ -11,10 +11,13 @@ from .models import (
     ItemBasedCF,
     SVDRecommender,
     XGBoostRecommender,
-    DecisionTreeRecommender
+    DecisionTreeRecommender,
+    DecisionTreeClusteredRecommender
 )
-from feature_engineering import (
+from .feature_engineering import (
+    get_kmeans,
     create_classifier_features,
+    create_classifier_features_with_clustered,
     prepare_classifier_training_data
 )
 from .evaluation import evaluate_classifiers, evaluate_recommenders
@@ -33,10 +36,13 @@ __all__ = [
     'SVDRecommender',
     'XGBoostRecommender',
     'DecisionTreeRecommender',
-    # Data modeling
+    # Feature engineering
+    'get_kmeans',
     'create_classifier_features',
+    'create_classifier_features_with_clustered',
     'prepare_classifier_training_data',
     # Evaluation
     'evaluate_classifiers',
     'evaluate_recommenders',
 ]
+

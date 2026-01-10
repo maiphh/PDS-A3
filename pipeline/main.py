@@ -12,7 +12,8 @@ from data_loader import (
 )
 from models import (
     PopularityRecommender, RandomRecommender, UserBasedCF, 
-    ItemBasedCF, SVDRecommender, XGBoostRecommender, DecisionTreeRecommender
+    ItemBasedCF, SVDRecommender, XGBoostRecommender, DecisionTreeRecommender,
+    DecisionTreeClusteredRecommender
 )
 from evaluation import evaluate_classifiers, evaluate_recommenders
 
@@ -78,13 +79,24 @@ def main():
         SVDRecommender(n_factors=50),
         XGBoostRecommender(n_factors=20, n_neg_samples=1),
         DecisionTreeRecommender(n_factors=20, n_neg_samples=1),
+        DecisionTreeClusteredRecommender(n_factors=20, n_neg_samples=1, n_clusters=5),
     ]
     
-    # Train all models
-    print("\nTraining models...")
+    # Train or load models
+    print("\nLoading/Training models...")
+    trained_models = []
     for model in models:
-        print(f"  Training {model.name}...")
-        model.fit(train_matrix)
+        if model.exists():
+            # Load existing model
+            loaded_model = type(model).load(model.get_model_path())
+            trained_models.append(loaded_model)
+        else:
+            # Train and save new model
+            print(f"  Training {model.name}...")
+            model.fit(train_matrix)
+            model.save()
+            trained_models.append(model)
+    models = trained_models
     print("Done!")
     
     # ==========================================================================
@@ -104,7 +116,7 @@ def main():
     
     # Evaluate all recommender models
     print("\n--- Recommender Evaluation ---")
-    recommender_results = evaluate_recommenders(models, test_data, k_values=[5, 10, 20])
+    recommender_results = evaluate_recommenders(models, test_data, k_values=[5], max_users=500)
     print("\nRecommender Results:")
     print(recommender_results)
     
@@ -117,10 +129,11 @@ def main():
     
     # Get a sample user with test data
     sample_user = list(test_data.keys())[0]
+    sample_user_vector = train_matrix[sample_user]
     print(f"\nRecommendations for user index {sample_user}:")
     
     for model in models:
-        recs = model.recommend(sample_user, n=5)
+        recs = model.recommend(sample_user_vector, n=5)
         print(f"  {model.name}: {recs}")
     
     return models, recommender_results

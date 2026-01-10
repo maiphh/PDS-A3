@@ -10,7 +10,7 @@ import urllib.request
 
 # Dataset URL from UCI Machine Learning Repository
 DATA_URL = "https://archive.ics.uci.edu/ml/machine-learning-databases/anonymous/anonymous-msweb.data"
-DATA_FILE = "anonymous-msweb.data"
+DATA_FILE = "pipeline/data/anonymous-msweb.data"
 
 
 def download_data(data_url: str = DATA_URL, data_file: str = DATA_FILE) -> str:
@@ -27,18 +27,6 @@ def download_data(data_url: str = DATA_URL, data_file: str = DATA_FILE) -> str:
 def load_dst(file_path: str) -> tuple[pd.DataFrame, pd.DataFrame]:
     """
     Parses a DST file and returns two DataFrames:
-    1. df_interactions: User-Item visits (C and V lines)
-    2. df_attributes: Page metadata (A lines)
-    
-    Parameters:
-    -----------
-    file_path : str
-        Path to the DST file
-        
-    Returns:
-    --------
-    tuple[pd.DataFrame, pd.DataFrame]
-        Tuple of (interactions_df, attributes_df)
     """
     interactions = []
     attributes = []
@@ -86,20 +74,6 @@ def convert_to_wide_dataframe(df: pd.DataFrame, user_col: str = 'case_id',
                                item_col: str = 'attr_id') -> pd.DataFrame:
     """
     Convert long-format interaction data to wide (pivot) format.
-    
-    Parameters:
-    -----------
-    df : pd.DataFrame
-        Long-format DataFrame with user-item interactions
-    user_col : str
-        Column name for user IDs
-    item_col : str
-        Column name for item IDs
-        
-    Returns:
-    --------
-    pd.DataFrame
-        Wide-format DataFrame with users as rows and items as columns
     """
     wide_df = pd.crosstab(df[user_col], df[item_col])
     return wide_df
@@ -109,22 +83,6 @@ def prepare_train_test_from_wide(wide_df: pd.DataFrame, test_ratio: float = 0.2,
                                   min_interactions: int = 2, seed: int = 42) -> tuple[np.ndarray, dict]:
     """
     Split wide_df into train matrix and test dict.
-    
-    Parameters:
-    -----------
-    wide_df : pd.DataFrame
-        Wide-format user-item interaction matrix
-    test_ratio : float
-        Proportion of interactions to hold out for testing
-    min_interactions : int
-        Minimum interactions required for a user to be included in test
-    seed : int
-        Random seed for reproducibility
-        
-    Returns:
-    --------
-    tuple[np.ndarray, dict]
-        Tuple of (train_matrix, test_data) where test_data maps user_idx to list of held-out item indices
     """
     np.random.seed(seed)
 
@@ -150,16 +108,6 @@ def prepare_train_test_from_wide(wide_df: pd.DataFrame, test_ratio: float = 0.2,
 def create_user_activity_features(df: pd.DataFrame) -> pd.DataFrame:
     """
     Create user activity features including activity level categorization.
-    
-    Parameters:
-    -----------
-    df : pd.DataFrame
-        Interaction DataFrame with 'case_id' column
-        
-    Returns:
-    --------
-    pd.DataFrame
-        DataFrame with user_id, num_pages_visited, and activity_level
     """
     # Compute the number of unique pages visited by each user
     user_activity = df.groupby("case_id").size()
@@ -181,16 +129,6 @@ def create_user_activity_features(df: pd.DataFrame) -> pd.DataFrame:
 def create_page_popularity_features(df: pd.DataFrame) -> pd.DataFrame:
     """
     Create page popularity features including popularity level categorization.
-    
-    Parameters:
-    -----------
-    df : pd.DataFrame
-        Interaction DataFrame with 'attr_id' and 'case_id' columns
-        
-    Returns:
-    --------
-    pd.DataFrame
-        DataFrame with attr_id, num_users_visited, and popularity_level
     """
     # Number of unique users visiting each page
     page_popularity = df.groupby("attr_id")["case_id"].nunique()
