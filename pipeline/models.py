@@ -17,7 +17,10 @@ from feature_engineering import (
     create_classifier_features_with_clustered,
     prepare_classifier_training_data
 )
+from logger import setup_logger
 
+# Initialize logger
+logger = setup_logger()
 
 # Default output directory for saved models
 MODEL_OUTPUT_DIR = "pipeline/output/models"
@@ -73,7 +76,7 @@ class BaseRecommender(ABC):
         filepath = filepath or self.get_model_path()
         os.makedirs(os.path.dirname(filepath), exist_ok=True)
         joblib.dump(self, filepath)
-        print(f"Model saved to {filepath}")
+        logger.info(f"Model saved to {filepath}")
         return filepath
 
     @classmethod
@@ -92,7 +95,7 @@ class BaseRecommender(ABC):
             The loaded model instance.
         """
         model = joblib.load(filepath)
-        print(f"Model loaded from {filepath}")
+        logger.info(f"Model loaded from {filepath}")
         return model
 
     def exists(self, output_dir: str = None) -> bool:
@@ -247,7 +250,7 @@ class XGBoostRecommender(BaseRecommender):
                     'learning_rate': [0.1, 0.2],
                 }
 
-            print(f"Tuning {self.name} with RandomizedSearchCV (n_iter={n_iter})...")
+            logger.info(f"Tuning {self.name} with RandomizedSearchCV (n_iter={n_iter})...")
             base_model = XGBClassifier(random_state=self.seed, eval_metric='logloss')
             random_search = RandomizedSearchCV(
                 base_model, param_dist, n_iter=n_iter, cv=cv,
@@ -257,8 +260,8 @@ class XGBoostRecommender(BaseRecommender):
 
             self.model = random_search.best_estimator_
             self.best_params_ = random_search.best_params_
-            print(f"Best params: {self.best_params_}")
-            print(f"Best CV score: {random_search.best_score_:.4f}")
+            logger.info(f"Best params: {self.best_params_}")
+            logger.info(f"Best CV score: {random_search.best_score_:.4f}")
         else:
             self.model = XGBClassifier(random_state=self.seed)
             self.model.fit(X_train, y_train)
@@ -322,7 +325,7 @@ class DecisionTreeRecommender(BaseRecommender):
                     'min_samples_leaf': [1, 2],
                 }
 
-            print(f"Tuning {self.name} with RandomizedSearchCV (n_iter={n_iter})...")
+            logger.info(f"Tuning {self.name} with RandomizedSearchCV (n_iter={n_iter})...")
             base_model = DecisionTreeClassifier(random_state=self.seed)
             random_search = RandomizedSearchCV(
                 base_model, param_dist, n_iter=n_iter, cv=cv,
@@ -331,8 +334,8 @@ class DecisionTreeRecommender(BaseRecommender):
             random_search.fit(X_train, y_train)
             self.model = random_search.best_estimator_
             self.best_params_ = random_search.best_params_
-            print(f"Best params: {self.best_params_}")
-            print(f"Best CV score: {random_search.best_score_:.4f}")
+            logger.info(f"Best params: {self.best_params_}")
+            logger.info(f"Best CV score: {random_search.best_score_:.4f}")
         else:
             self.model = DecisionTreeClassifier(random_state=self.seed)
             self.model.fit(X_train, y_train)
@@ -405,7 +408,7 @@ class DecisionTreeClusteredRecommender(BaseRecommender):
                     'min_samples_leaf': [1, 2],
                 }
 
-            print(f"Tuning {self.name} with RandomizedSearchCV (n_iter={n_iter})...")
+            logger.info(f"Tuning {self.name} with RandomizedSearchCV (n_iter={n_iter})...")
             base_model = DecisionTreeClassifier(random_state=self.seed)
             random_search = RandomizedSearchCV(
                 base_model, param_dist, n_iter=n_iter, cv=cv,
@@ -414,8 +417,8 @@ class DecisionTreeClusteredRecommender(BaseRecommender):
             random_search.fit(X_train, y_train)
             self.model = random_search.best_estimator_
             self.best_params_ = random_search.best_params_
-            print(f"Best params: {self.best_params_}")
-            print(f"Best CV score: {random_search.best_score_:.4f}")
+            logger.info(f"Best params: {self.best_params_}")
+            logger.info(f"Best CV score: {random_search.best_score_:.4f}")
         else:
             self.model = DecisionTreeClassifier(random_state=self.seed)
             self.model.fit(X_train, y_train)

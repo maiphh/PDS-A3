@@ -12,6 +12,10 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from data_loader import load_dst, convert_to_wide_dataframe
 from models import BaseRecommender
+from logger import setup_logger
+
+# Initialize logger
+logger = setup_logger()
 
 # Paths
 TEST_DATA_FILE = "pipeline/data/anonymous-msweb.test"
@@ -22,10 +26,10 @@ def load_test_data(test_file: str = TEST_DATA_FILE) -> tuple:
     """
     Load test data and return interactions DataFrame and attributes DataFrame.
     """
-    print(f"Loading test data from {test_file}...")
+    logger.info(f"Loading test data from {test_file}...")
     test_df, attr_df = load_dst(test_file)
     wide_df = convert_to_wide_dataframe(test_df, user_col='case_id', item_col='attr_id')
-    print(f"Loaded {len(wide_df)} test users with {len(wide_df.columns)} items")
+    logger.info(f"Loaded {len(wide_df)} test users with {len(wide_df.columns)} items")
     return test_df, attr_df, wide_df
 
 
@@ -36,26 +40,26 @@ def load_all_models(models_dir: str = MODELS_DIR) -> list:
     models = []
     
     if not os.path.exists(models_dir):
-        print(f"Error: Models directory '{models_dir}' not found!")
-        print("Please run main.py first to train and save models.")
+        logger.error(f"Error: Models directory '{models_dir}' not found!")
+        logger.error("Please run main.py first to train and save models.")
         return models
     
     model_files = [f for f in os.listdir(models_dir) if f.endswith('.pkl')]
     
     if not model_files:
-        print(f"No model files found in {models_dir}")
+        logger.warning(f"No model files found in {models_dir}")
         return models
     
-    print(f"Loading {len(model_files)} models...")
+    logger.info(f"Loading {len(model_files)} models...")
     for model_file in model_files:
         filepath = os.path.join(models_dir, model_file)
         try:
             model = BaseRecommender.load(filepath)
             models.append(model)
         except Exception as e:
-            print(f"  Failed to load {model_file}: {e}")
+            logger.error(f"  Failed to load {model_file}: {e}")
     
-    print(f"Successfully loaded {len(models)} models")
+    logger.info(f"Successfully loaded {len(models)} models")
     return models
 
 

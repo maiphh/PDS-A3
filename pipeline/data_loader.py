@@ -6,7 +6,10 @@ import pandas as pd
 import numpy as np
 import os
 import urllib.request
+from logger import setup_logger
 
+# Initialize logger
+logger = setup_logger()
 
 # Dataset URL from UCI Machine Learning Repository
 DATA_URL = "https://archive.ics.uci.edu/ml/machine-learning-databases/anonymous/anonymous-msweb.data"
@@ -16,11 +19,11 @@ DATA_FILE = "pipeline/data/anonymous-msweb.data"
 def download_data(data_url: str = DATA_URL, data_file: str = DATA_FILE) -> str:
     """Download the dataset if it doesn't exist locally."""
     if not os.path.exists(data_file):
-        print(f"Downloading {data_file} from UCI repository...")
+        logger.info(f"Downloading {data_file} from UCI repository...")
         urllib.request.urlretrieve(data_url, data_file)
-        print(f"Downloaded {data_file} successfully!")
+        logger.info(f"Downloaded {data_file} successfully!")
     else:
-        print(f"{data_file} already exists locally.")
+        logger.info(f"{data_file} already exists locally.")
     return data_file
 
 
@@ -101,7 +104,7 @@ def prepare_train_test_from_wide(wide_df: pd.DataFrame, test_ratio: float = 0.2,
             for idx in item_indices[:n_test]:
                 train_matrix[user_idx, idx] = 0.0
 
-    print(f"Train: {int(train_matrix.sum())} interactions | Test: {len(test_data)} users, {sum(len(v) for v in test_data.values())} interactions")
+    logger.info(f"Train: {int(train_matrix.sum())} interactions | Test: {len(test_data)} users, {sum(len(v) for v in test_data.values())} interactions")
     return train_matrix, test_data
 
 

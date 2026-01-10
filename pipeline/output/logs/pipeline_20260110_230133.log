@@ -1,0 +1,88 @@
+2026-01-10 23:01:36,473 - pipeline - INFO - ============================================================
+2026-01-10 23:01:36,474 - pipeline - INFO - Task 1: Retrieving and Preparing the Data
+2026-01-10 23:01:36,474 - pipeline - INFO - ============================================================
+2026-01-10 23:01:36,476 - pipeline - INFO - pipeline/data/anonymous-msweb.data already exists locally.
+2026-01-10 23:01:36,721 - pipeline - INFO - Interactions DataFrame shape: (98654, 2)
+2026-01-10 23:01:36,721 - pipeline - INFO - Attributes DataFrame shape: (294, 3)
+2026-01-10 23:01:36,724 - pipeline - INFO - Number of unique users: 32711
+2026-01-10 23:01:36,725 - pipeline - INFO - Number of unique pages: 294
+2026-01-10 23:01:36,725 - pipeline - INFO - Missing values in interactions:
+2026-01-10 23:01:36,727 - pipeline - INFO - 
+case_id    0
+attr_id    0
+dtype: int64
+2026-01-10 23:01:36,728 - pipeline - INFO - Missing values in attributes:
+2026-01-10 23:01:36,730 - pipeline - INFO - 
+attr_id    0
+title      0
+url        0
+dtype: int64
+2026-01-10 23:01:36,742 - pipeline - INFO - Duplicate user-page interactions: 0
+2026-01-10 23:01:36,742 - pipeline - INFO - ============================================================
+2026-01-10 23:01:36,743 - pipeline - INFO - Task 2: Feature Engineering
+2026-01-10 23:01:36,743 - pipeline - INFO - ============================================================
+2026-01-10 23:01:38,639 - pipeline - INFO - Wide DataFrame shape: (32711, 285)
+2026-01-10 23:01:38,640 - pipeline - INFO - ============================================================
+2026-01-10 23:01:38,640 - pipeline - INFO - Task 3: Modeling
+2026-01-10 23:01:38,640 - pipeline - INFO - ============================================================
+2026-01-10 23:01:38,934 - pipeline - INFO - Train: 74862 interactions | Test: 22716 users, 23792 interactions
+2026-01-10 23:01:38,938 - pipeline - INFO - Loading/Training models...
+2026-01-10 23:01:38,979 - pipeline - INFO - Model loaded from pipeline/output/models\Popularity.pkl
+2026-01-10 23:01:39,020 - pipeline - INFO - Model loaded from pipeline/output/models\Random.pkl
+2026-01-10 23:01:52,760 - pipeline - INFO - Model loaded from pipeline/output/models\UserCF_k50.pkl
+2026-01-10 23:01:52,814 - pipeline - INFO - Model loaded from pipeline/output/models\ItemCF_k50.pkl
+2026-01-10 23:01:52,856 - pipeline - INFO - Model loaded from pipeline/output/models\SVD_f50.pkl
+2026-01-10 23:01:53,382 - pipeline - INFO - Model loaded from pipeline/output/models\XGBoost_f20.pkl
+2026-01-10 23:01:53,516 - pipeline - INFO - Model loaded from pipeline/output/models\DecisionTree_f20.pkl
+2026-01-10 23:01:53,598 - pipeline - INFO - Model loaded from pipeline/output/models\DecisionTreeClustered_f20,k5.pkl
+2026-01-10 23:01:53,600 - pipeline - INFO - Done!
+2026-01-10 23:01:53,601 - pipeline - INFO - ============================================================
+2026-01-10 23:01:53,601 - pipeline - INFO - Task 4: Evaluation
+2026-01-10 23:01:53,601 - pipeline - INFO - ============================================================
+2026-01-10 23:01:53,602 - pipeline - INFO - --- Classifier Evaluation ---
+2026-01-10 23:01:53,602 - pipeline - INFO - Evaluating classifier: XGBoost(f=20)...
+2026-01-10 23:03:30,798 - pipeline - INFO - --- XGBoost(f=20) Classification Report ---
+2026-01-10 23:03:30,843 - pipeline - INFO - 
+              precision    recall  f1-score   support
+
+ No Interact       0.85      0.97      0.91    118960
+    Interact       0.52      0.15      0.24     23792
+
+    accuracy                           0.83    142752
+   macro avg       0.68      0.56      0.57    142752
+weighted avg       0.80      0.83      0.80    142752
+
+2026-01-10 23:03:30,844 - pipeline - INFO - Evaluating classifier: DecisionTree(f=20)...
+2026-01-10 23:05:08,785 - pipeline - INFO - --- DecisionTree(f=20) Classification Report ---
+2026-01-10 23:05:08,843 - pipeline - INFO - 
+              precision    recall  f1-score   support
+
+ No Interact       0.88      0.94      0.91    118960
+    Interact       0.54      0.36      0.43     23792
+
+    accuracy                           0.84    142752
+   macro avg       0.71      0.65      0.67    142752
+weighted avg       0.82      0.84      0.83    142752
+
+2026-01-10 23:05:08,844 - pipeline - INFO - Evaluating classifier: DecisionTreeClustered(f=20,k=5)...
+2026-01-10 23:05:08,846 - pipeline - INFO - Training KMeans with n_clusters=5...
+2026-01-10 23:05:16,305 - pipeline - INFO - KMeans trained. Cluster distribution: [ 3455 16309  4707  5622  2618]
+2026-01-10 23:07:01,381 - pipeline - INFO - --- DecisionTreeClustered(f=20,k=5) Classification Report ---
+2026-01-10 23:07:01,422 - pipeline - INFO - 
+              precision    recall  f1-score   support
+
+ No Interact       0.88      0.94      0.91    118960
+    Interact       0.54      0.36      0.43     23792
+
+    accuracy                           0.84    142752
+   macro avg       0.71      0.65      0.67    142752
+weighted avg       0.82      0.84      0.83    142752
+
+2026-01-10 23:07:01,555 - pipeline - INFO - Classifier Results:
+2026-01-10 23:07:01,620 - pipeline - INFO - 
+                                 Accuracy  Precision  Recall  F1 Score  ROC-AUC
+Model                                                                          
+XGBoost(f=20)                      0.8348     0.5151  0.1540    0.2371   0.6278
+DecisionTree(f=20)                 0.8416     0.5376  0.3565    0.4287   0.5757
+DecisionTreeClustered(f=20,k=5)    0.8416     0.5376  0.3552    0.4278   0.5752
+2026-01-10 23:07:01,621 - pipeline - INFO - --- Recommender Evaluation ---

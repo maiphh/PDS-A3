@@ -6,7 +6,10 @@ import numpy as np
 import pandas as pd
 from sklearn.decomposition import TruncatedSVD
 from sklearn.cluster import KMeans
+from logger import setup_logger
 
+# Initialize logger
+logger = setup_logger()
 
 # Module-level cache for KMeans model
 _kmeans_model = None
@@ -19,10 +22,10 @@ def get_kmeans(X: np.ndarray, n_clusters: int = 5, seed: int = 42) -> KMeans:
     global _kmeans_model
     
     if _kmeans_model is None:
-        print(f"Training KMeans with n_clusters={n_clusters}...")
+        logger.info(f"Training KMeans with n_clusters={n_clusters}...")
         _kmeans_model = KMeans(n_clusters=n_clusters, random_state=seed, n_init=10)
         _kmeans_model.fit(X)
-        print(f"KMeans trained. Cluster distribution: {np.bincount(_kmeans_model.labels_)}")
+        logger.info(f"KMeans trained. Cluster distribution: {np.bincount(_kmeans_model.labels_)}")
     
     return _kmeans_model
 
@@ -102,19 +105,19 @@ def prepare_classifier_training_data(train_matrix: np.ndarray, n_factors: int,
     X_train, y_train = [], []
     
     mode_str = "clustered" if is_clustered else "standard"
-    print(f"Generating {mode_str} training samples for {n_users} users...")
+    logger.info(f"Generating {mode_str} training samples for {n_users} users...")
     
     # Pre-compute cluster labels for all users (MUCH faster than computing per-sample)
     user_cluster_labels = None
     if is_clustered:
-        print("Pre-computing cluster labels from raw user interaction vectors...")
+        logger.info("Pre-computing cluster labels from raw user interaction vectors...")
         kmeans = get_kmeans(train_matrix, n_clusters=n_clusters, seed=seed)
         user_cluster_labels = kmeans.labels_
-        print("Cluster labels computed.")
+        logger.info("Cluster labels computed.")
 
     for user_idx in range(n_users):
         if user_idx % 500 == 0:
-            print(f"  Processing user {user_idx}/{n_users}...")
+            logger.info(f"  Processing user {user_idx}/{n_users}...")
         user_vector = train_matrix[user_idx]
         pos_items = np.where(user_vector > 0)[0]
         if len(pos_items) == 0:
@@ -155,8 +158,8 @@ def prepare_classifier_training_data(train_matrix: np.ndarray, n_factors: int,
 
     # Check class distribution
     class_dist = pd.Series(y_train).value_counts(normalize=True)
-    print("Class distribution:")
-    print(class_dist)
+    logger.info("Class distribution:")
+    logger.info(f"\n{class_dist}")
 
     return np.array(X_train), np.array(y_train), svd, item_factors
 

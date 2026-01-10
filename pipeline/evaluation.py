@@ -2,25 +2,37 @@
 Evaluation functions for recommender systems.
 """
 
+import os
+from datetime import datetime
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
 from sklearn.metrics import (
     accuracy_score, precision_score, recall_score, 
     f1_score, roc_auc_score, classification_report, ndcg_score
 )
 
 from feature_engineering import create_classifier_features, create_classifier_features_with_clustered, get_kmeans
+from logger import setup_logger
+
+# Initialize logger
+logger = setup_logger()
+
+# Default output directory for evaluation results
+EVALUATION_OUTPUT_DIR = "pipeline/output/evaluations"
 
 
 def evaluate_classifiers(models: list, train_matrix: np.ndarray, test_data: dict, 
-                         n_neg_samples: int = 5) -> pd.DataFrame:
+                         n_neg_samples: int = 5,
+                         output_dir: str = None) -> pd.DataFrame:
     """
     Evaluate classifier performance on held-out test data.
     """
     results = []
 
     for model in models:
-        print(f"Evaluating classifier: {model.name}...")
+        logger.info(f"Evaluating classifier: {model.name}...")
         
         # Check if this is a clustered model
         is_clustered = hasattr(model, 'n_clusters')
@@ -89,15 +101,49 @@ def evaluate_classifiers(models: list, train_matrix: np.ndarray, test_data: dict
         })
 
         # Print detailed report
-        print(f"\n--- {model.name} Classification Report ---")
-        print(classification_report(y_test, y_pred, target_names=['No Interact', 'Interact']))
+        logger.info(f"--- {model.name} Classification Report ---")
+        logger.info(f"\n{classification_report(y_test, y_pred, target_names=['No Interact', 'Interact'])}")
 
-    return pd.DataFrame(results).set_index("Model").round(4)
+    results_df = pd.DataFrame(results).set_index("Model").round(4)
+    
+    # Save to file if output_dir specified
+    if output_dir:
+        os.makedirs(output_dir, exist_ok=True)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        output_path = os.path.join(output_dir, f"classifier_comparison_{timestamp}.csv")
+        results_df.to_csv(output_path)
+        logger.info(f"Classifier results saved to: {output_path}")
+
+        # Generate and save plot
+        plot_path = os.path.join(output_dir, f"classifier_comparison_{timestamp}.png")
+        plot_classifier_comparison(results_df, plot_path)
+        logger.info(f"Classifier comparison plot saved to: {plot_path}")
+    
+    return results_df
+
+
+def plot_classifier_comparison(results_df: pd.DataFrame, output_path: str):
+    """Generate and save a bar chart comparing classifier metrics."""
+    plt.figure(figsize=(12, 6))
+    
+    # Melt DataFrame for seaborn plotting
+    # Reset index to make 'Model' a column
+    df_melted = results_df.reset_index().melt(id_vars='Model', var_name='Metric', value_name='Score')
+    
+    sns.barplot(data=df_melted, x='Metric', y='Score', hue='Model', palette='viridis')
+    plt.title('Classifier Performance Comparison')
+    plt.ylim(0, 1.05)
+    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=300)
+    plt.close()
+
 
 def evaluate_recommenders(models: list, test_data: dict, 
                           k_values: list = [5, 10, 20],
                           max_users: int = None,
-                          verbose: bool = True) -> pd.DataFrame:
+                          verbose: bool = True,
+                          output_dir: str = None) -> pd.DataFrame:
     """
     Evaluate a list of recommender models and return comparison DataFrame.
     """
@@ -110,13 +156,13 @@ def evaluate_recommenders(models: list, test_data: dict,
         np.random.seed(42)
         test_users = list(np.random.choice(test_users, size=max_users, replace=False))
         if verbose:
-            print(f"Sampling {max_users} users for evaluation (out of {len(test_data)})")
+            logger.info(f"Sampling {max_users} users for evaluation (out of {len(test_data)})")
 
     n_users = len(test_users)
 
     for model in models:
         if verbose:
-            print(f"Evaluating {model.name}...", end=" ", flush=True)
+            logger.info(f"Evaluating {model.name}...")
         
         metrics = {f"precision@{k}": [] for k in k_values}
         metrics.update({f"recall@{k}": [] for k in k_values})
@@ -147,14 +193,54 @@ def evaluate_recommenders(models: list, test_data: dict,
             
             # Progress indicator
             if verbose and (i + 1) % 100 == 0:
-                print(f"{i + 1}/{n_users}", end=" ", flush=True)
+                logger.info(f"Evaluated {i + 1}/{n_users} users")
         
         if verbose:
-            print("Done!")
+            logger.info("Done!")
 
         row = {"Model": model.name}
         row.update({m: np.mean(v) for m, v in metrics.items()})
         results.append(row)
 
-    return pd.DataFrame(results).set_index("Model").round(4)
+    results_df = pd.DataFrame(results).set_index("Model").round(4)
+    
+    # Save to file if output_dir specified
+    if output_dir:
+        os.makedirs(output_dir, exist_ok=True)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        output_path = os.path.join(output_dir, f"recommender_comparison_{timestamp}.csv")
+        results_df.to_csv(output_path)
+        if verbose:
+            logger.info(f"Recommender results saved to: {output_path}")
+            
+        # Generate and save plot
+        plot_path = os.path.join(output_dir, f"recommender_comparison_{timestamp}.png")
+        plot_recommender_comparison(results_df, plot_path)
+        if verbose:
+            logger.info(f"Recommender comparison plot saved to: {plot_path}")
+    
+    return results_df
+
+
+def plot_recommender_comparison(results_df: pd.DataFrame, output_path: str):
+    """Generate and save a bar chart comparing recommender metrics."""
+    # Filter for key metrics to keep plot readable (e.g. @5)
+    # We'll plot all metrics but in separate subplots if there are many, or just one giant plot
+    # For simplicity, let's plot all columns
+    
+    plt.figure(figsize=(14, 8))
+    
+    # Melt DataFrame
+    df_melted = results_df.reset_index().melt(id_vars='Model', var_name='Metric', value_name='Score')
+    
+    # Create the plot
+    sns.barplot(data=df_melted, x='Metric', y='Score', hue='Model', palette='rocket')
+    
+    plt.title('Recommender System Performance')
+    plt.xticks(rotation=45, ha='right')
+    plt.ylim(0, 1.05) # Hits and recall are <= 1, precision too. NDCG <= 1.
+    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=300)
+    plt.close()
 
