@@ -1,4 +1,0 @@
-Model,Accuracy,Precision,Recall,F1 Score,ROC-AUC
-XGBoost(f=20),0.8348,0.5151,0.154,0.2371,0.6278
-DecisionTree(f=20),0.8416,0.5376,0.3565,0.4287,0.5757
-"DecisionTreeClustered(f=20,k=5)",0.8416,0.5376,0.3552,0.4278,0.5752
