@@ -14,53 +14,29 @@ from data_loader import load_dst, convert_to_wide_dataframe
 from models import BaseRecommender
 from logger import setup_logger
 
+from utils import load_all_models
+
 # Initialize logger
 logger = setup_logger()
 
 # Paths
+TRAIN_DATA_FILE = "pipeline/data/anonymous-msweb.data"
 TEST_DATA_FILE = "pipeline/data/anonymous-msweb.test"
 MODELS_DIR = "pipeline/output/models"
 
 
-def load_test_data(test_file: str = TEST_DATA_FILE) -> tuple:
+def load_data(data_file: str) -> tuple:
     """
-    Load test data and return interactions DataFrame and attributes DataFrame.
+    Load data and return interactions DataFrame, attributes DataFrame, and wide DataFrame.
     """
-    logger.info(f"Loading test data from {test_file}...")
-    test_df, attr_df = load_dst(test_file)
-    wide_df = convert_to_wide_dataframe(test_df, user_col='case_id', item_col='attr_id')
-    logger.info(f"Loaded {len(wide_df)} test users with {len(wide_df.columns)} items")
-    return test_df, attr_df, wide_df
+    logger.info(f"Loading data from {data_file}...")
+    df, attr_df = load_dst(data_file)
+    wide_df = convert_to_wide_dataframe(df, user_col='case_id', item_col='attr_id')
+    logger.info(f"Loaded {len(wide_df)} users with {len(wide_df.columns)} items")
+    return df, attr_df, wide_df
 
 
-def load_all_models(models_dir: str = MODELS_DIR) -> list:
-    """
-    Load all saved models from the output directory.
-    """
-    models = []
-    
-    if not os.path.exists(models_dir):
-        logger.error(f"Error: Models directory '{models_dir}' not found!")
-        logger.error("Please run main.py first to train and save models.")
-        return models
-    
-    model_files = [f for f in os.listdir(models_dir) if f.endswith('.pkl')]
-    
-    if not model_files:
-        logger.warning(f"No model files found in {models_dir}")
-        return models
-    
-    logger.info(f"Loading {len(model_files)} models...")
-    for model_file in model_files:
-        filepath = os.path.join(models_dir, model_file)
-        try:
-            model = BaseRecommender.load(filepath)
-            models.append(model)
-        except Exception as e:
-            logger.error(f"  Failed to load {model_file}: {e}")
-    
-    logger.info(f"Successfully loaded {len(models)} models")
-    return models
+
 
 
 def create_user_vector(user_items: list, n_items: int, item_to_idx: dict) -> np.ndarray:
@@ -133,9 +109,18 @@ def main():
     print("RECOMMENDER SYSTEM DEMO")
     print("=" * 70)
     
-    # Load test data
+    # Load training data (for item mappings and attribute info)
+    # Models are trained on training data, so item indices correspond to training data columns
     try:
-        test_df, attr_df, test_wide_df = load_test_data()
+        train_df, train_attr_df, train_wide_df = load_data(TRAIN_DATA_FILE)
+    except FileNotFoundError as e:
+        print(f"Error: {e}")
+        print("Please ensure training data exists at the specified path.")
+        return
+    
+    # Load test data (for test users)
+    try:
+        test_df, test_attr_df, test_wide_df = load_data(TEST_DATA_FILE)
     except FileNotFoundError as e:
         print(f"Error: {e}")
         print("Please ensure test data exists at the specified path.")
@@ -147,9 +132,13 @@ def main():
         return
     sample_model = models[0]
     n_items = sample_model.train_matrix.shape[1]
-    test_item_ids = test_wide_df.columns.tolist()
-    item_to_idx = {item_id: idx for idx, item_id in enumerate(test_item_ids) if idx < n_items}
+    
+    # Use TRAINING data columns for item index mappings (models are trained on training data)
+    train_item_ids = train_wide_df.columns.tolist()
+    item_to_idx = {item_id: idx for idx, item_id in enumerate(train_item_ids)}
     idx_to_item = {v: k for k, v in item_to_idx.items()}
+    
+    # Test users and their data
     test_users = test_wide_df.values
     test_user_ids = test_wide_df.index.tolist()
     n_users = len(test_users)
@@ -190,7 +179,7 @@ def main():
         print(f"\nUser History ({len(visited_items)} pages visited):")
         visited_info = get_item_names(
             [item_to_idx.get(item_id, -1) for item_id in visited_items[:5]], 
-            idx_to_item, attr_df
+            idx_to_item, train_attr_df
         )
         for attr_id, title, url in visited_info:
             print(f"   • [{attr_id}] {title}")
@@ -204,7 +193,7 @@ def main():
                 user_vector[item_to_idx[item_id]] = 1.0
         
         # Get and display recommendations
-        display_recommendations(models, user_vector, idx_to_item, attr_df, n=5)
+        display_recommendations(models, user_vector, idx_to_item, train_attr_df, n=5)
 
 
 if __name__ == "__main__":

@@ -2,8 +2,11 @@
 Data modeling utilities for classifier-based recommenders.
 """
 
+import os
+from pathlib import Path
 import numpy as np
 import pandas as pd
+import joblib
 from sklearn.decomposition import TruncatedSVD
 from sklearn.cluster import KMeans
 from logger import setup_logger
@@ -14,18 +17,43 @@ logger = setup_logger()
 # Module-level cache for KMeans model
 _kmeans_model = None
 
+# Path for saving/loading models
+MODELS_DIR = "pipeline/output/models"
 
-def get_kmeans(X: np.ndarray, n_clusters: int = 5, seed: int = 42) -> KMeans:
+
+def get_kmeans(X: np.ndarray = None, n_clusters: int = 5, seed: int = 42) -> KMeans:
     """
-    Get or create a KMeans model. If model doesn't exist, train it.
+    Get or create a KMeans model. 
     """
     global _kmeans_model
     
-    if _kmeans_model is None:
-        logger.info(f"Training KMeans with n_clusters={n_clusters}...")
-        _kmeans_model = KMeans(n_clusters=n_clusters, random_state=seed, n_init=10)
-        _kmeans_model.fit(X)
-        logger.info(f"KMeans trained. Cluster distribution: {np.bincount(_kmeans_model.labels_)}")
+    model_path = Path(MODELS_DIR) / "kmeans.pkl"
+    
+    # Return cached model if available
+    if _kmeans_model is not None:
+        return _kmeans_model
+    
+    # Try to load from disk
+    if model_path.exists():
+        logger.info(f"Loading KMeans model from {model_path}...")
+        _kmeans_model = joblib.load(model_path)
+        logger.info("KMeans model loaded successfully.")
+        return _kmeans_model
+    
+    # Train new model if X is provided
+    if X is None:
+        raise ValueError("No saved KMeans model found and no training data (X) provided. "
+                        "Please provide training data to train a new model.")
+    
+    logger.info(f"Training KMeans with n_clusters={n_clusters}...")
+    _kmeans_model = KMeans(n_clusters=n_clusters, random_state=seed, n_init=10)
+    _kmeans_model.fit(X)
+    logger.info(f"KMeans trained. Cluster distribution: {np.bincount(_kmeans_model.labels_)}")
+    
+    # Save model to disk
+    MODELS_DIR.mkdir(parents=True, exist_ok=True)
+    joblib.dump(_kmeans_model, model_path)
+    logger.info(f"KMeans model saved to {model_path}")
     
     return _kmeans_model
 
