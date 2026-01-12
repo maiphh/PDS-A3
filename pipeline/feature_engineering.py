@@ -51,7 +51,7 @@ def get_kmeans(X: np.ndarray = None, n_clusters: int = 5, seed: int = 42) -> KMe
     logger.info(f"KMeans trained. Cluster distribution: {np.bincount(_kmeans_model.labels_)}")
     
     # Save model to disk
-    MODELS_DIR.mkdir(parents=True, exist_ok=True)
+    Path(MODELS_DIR).mkdir(parents=True, exist_ok=True)
     joblib.dump(_kmeans_model, model_path)
     logger.info(f"KMeans model saved to {model_path}")
     

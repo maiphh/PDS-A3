@@ -341,10 +341,6 @@ class DecisionTreeRecommender(BaseRecommender):
 class DecisionTreeClusteredRecommender(BaseRecommender):
     """
     Decision Tree-based recommender with KMeans clustering.
-    
-    Two-stage model:
-    1. KMeans clustering generates cluster labels from user latent representations
-    2. Decision Tree classifier uses features + cluster labels for prediction
     """
 
     def __init__(self, n_factors: int = 20, n_neg_samples: int = 5, 
@@ -436,8 +432,7 @@ class VotingEnsembleRecommender(BaseRecommender):
 
     def __init__(self, base_models: list[BaseRecommender], popularity_fallback: BaseRecommender,
                  cold_start_threshold: int = 3, weights: list = None):
-        model_names = [m.name for m in base_models]
-        super().__init__(f"VotingEnsemble({'+'.join(model_names)})")
+        super().__init__(f"VotingEnsemble")
         
         self.base_models = base_models
         self.popularity_fallback = popularity_fallback

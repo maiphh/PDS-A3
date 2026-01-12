@@ -12,7 +12,7 @@ def load_all_models(train_matrix: np.ndarray = None, models_dir: str = "pipeline
         ItemBasedCF(k=50),
         XGBoostRecommender(n_factors=20, n_neg_samples=1),
         DecisionTreeRecommender(n_factors=20, n_neg_samples=1),
-        DecisionTreeClusteredRecommender(n_factors=20, n_neg_samples=1, n_clusters=5),
+        DecisionTreeClusteredRecommender(n_factors=20, n_neg_samples=1),
     ]
     
     # Train or load models

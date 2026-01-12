@@ -12,7 +12,7 @@ from data_loader import (
 )
 from models import (
     PopularityRecommender, RandomRecommender, UserBasedCF, 
-    ItemBasedCF, SVDRecommender, XGBoostRecommender, DecisionTreeRecommender,
+    ItemBasedCF, XGBoostRecommender, DecisionTreeRecommender,
     DecisionTreeClusteredRecommender
 )
 from evaluation import evaluate_classifiers, evaluate_recommenders
