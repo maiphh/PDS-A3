@@ -7,6 +7,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import joblib
+import matplotlib.pyplot as plt
 from sklearn.decomposition import TruncatedSVD
 from sklearn.cluster import KMeans
 from logger import setup_logger
@@ -19,11 +20,68 @@ _kmeans_model = None
 
 # Path for saving/loading models
 MODELS_DIR = "pipeline/output/models"
+EVALUATIONS_DIR = "pipeline/output/evaluations"
 
 
-def get_kmeans(X: np.ndarray = None, n_clusters: int = 5, seed: int = 42) -> KMeans:
+def find_optimal_k_elbow(X: np.ndarray, k_range: range = range(2, 11), seed: int = 42) -> int:
+    """
+    Find optimal number of clusters using the elbow method.
+    Saves the elbow plot to the evaluations folder.
+    
+    Returns the optimal k based on the elbow point.
+    """
+    X_float64 = X.astype(np.float64)
+    inertias = []
+    
+    logger.info(f"Running elbow method for k in range {k_range.start} to {k_range.stop - 1}...")
+    
+    for k in k_range:
+        kmeans = KMeans(n_clusters=k, random_state=seed, n_init=10)
+        kmeans.fit(X_float64)
+        inertias.append(kmeans.inertia_)
+        logger.info(f"  k={k}: inertia={kmeans.inertia_:.2f}")
+    
+    # Find elbow point using the "knee" detection method
+    # Calculate the rate of change (first derivative)
+    k_values = list(k_range)
+    
+    # Use the elbow detection: find where the decrease in inertia slows down significantly
+    # Calculate second derivative to find the point of maximum curvature
+    first_derivative = np.diff(inertias)
+    second_derivative = np.diff(first_derivative)
+    
+    # The elbow is where the second derivative is maximum (steepest change in slope)
+    elbow_idx = np.argmax(second_derivative) + 1  # +1 because we lose one element in diff
+    optimal_k = k_values[elbow_idx]
+    
+    logger.info(f"Optimal k detected: {optimal_k}")
+    
+    # Plot the elbow curve
+    plt.figure(figsize=(10, 6))
+    plt.plot(k_values, inertias, 'bo-', linewidth=2, markersize=8)
+    plt.axvline(x=optimal_k, color='r', linestyle='--', linewidth=2, label=f'Optimal k = {optimal_k}')
+    plt.xlabel('Number of Clusters (k)', fontsize=12)
+    plt.ylabel('Inertia (Within-cluster Sum of Squares)', fontsize=12)
+    plt.title('Elbow Method for Optimal k Selection', fontsize=14)
+    plt.legend(fontsize=11)
+    plt.grid(True, alpha=0.3)
+    plt.xticks(k_values)
+    
+    # Save the plot
+    Path(EVALUATIONS_DIR).mkdir(parents=True, exist_ok=True)
+    plot_path = Path(EVALUATIONS_DIR) / "kmeans_elbow_plot.png"
+    plt.savefig(plot_path, dpi=150, bbox_inches='tight')
+    plt.close()
+    
+    logger.info(f"Elbow plot saved to {plot_path}")
+    
+    return optimal_k
+
+
+def get_kmeans(X: np.ndarray = None, n_clusters: int = None, seed: int = 42) -> KMeans:
     """
     Get or create a KMeans model. 
+    If not trained and n_clusters is not specified, uses elbow method to find optimal k.
     """
     global _kmeans_model
     
@@ -44,6 +102,10 @@ def get_kmeans(X: np.ndarray = None, n_clusters: int = 5, seed: int = 42) -> KMe
     if X is None:
         raise ValueError("No saved KMeans model found and no training data (X) provided. "
                         "Please provide training data to train a new model.")
+    
+    # Use elbow method to find optimal k if not specified
+    if n_clusters is None:
+        n_clusters = find_optimal_k_elbow(X, seed=seed)
     
     logger.info(f"Training KMeans with n_clusters={n_clusters}...")
     _kmeans_model = KMeans(n_clusters=n_clusters, random_state=seed, n_init=10)
@@ -117,9 +179,10 @@ def create_classifier_features_with_clustered(
 
 def prepare_classifier_training_data(train_matrix: np.ndarray, n_factors: int,
                                       n_neg_samples: int, seed: int = 42, 
-                                      is_clustered: bool = False, n_clusters: int = 5) -> tuple:
+                                      is_clustered: bool = False, n_clusters: int = None) -> tuple:
     """
     Prepare SVD factors and training samples for classifier-based recommenders.
+    If n_clusters is None, elbow method will be used to find optimal k.
     """
     n_users, n_items = train_matrix.shape
 
@@ -138,11 +201,14 @@ def prepare_classifier_training_data(train_matrix: np.ndarray, n_factors: int,
     
     # Pre-compute cluster labels for all users (MUCH faster than computing per-sample)
     user_cluster_labels = None
+    actual_n_clusters = None
     if is_clustered:
         logger.info("Pre-computing cluster labels from raw user interaction vectors...")
         kmeans = get_kmeans(train_matrix, n_clusters=n_clusters, seed=seed)
         user_cluster_labels = kmeans.labels_
-        logger.info("Cluster labels computed.")
+        # Get actual n_clusters from trained model (important when elbow method was used)
+        actual_n_clusters = kmeans.n_clusters
+        logger.info(f"Cluster labels computed. Using {actual_n_clusters} clusters.")
 
     for user_idx in range(n_users):
         if user_idx % 500 == 0:
@@ -157,7 +223,7 @@ def prepare_classifier_training_data(train_matrix: np.ndarray, n_factors: int,
             if is_clustered:
                 features = create_classifier_features_with_clustered(
                     user_vector, train_matrix, item_factors, svd, item_idx,
-                    cluster_label=user_cluster_labels[user_idx], n_clusters=n_clusters
+                    cluster_label=user_cluster_labels[user_idx], n_clusters=actual_n_clusters
                 )
             else:
                 features = create_classifier_features(
@@ -176,7 +242,7 @@ def prepare_classifier_training_data(train_matrix: np.ndarray, n_factors: int,
                 if is_clustered:
                     features = create_classifier_features_with_clustered(
                         user_vector, train_matrix, item_factors, svd, item_idx,
-                        cluster_label=user_cluster_labels[user_idx], n_clusters=n_clusters
+                        cluster_label=user_cluster_labels[user_idx], n_clusters=actual_n_clusters
                     )
                 else:
                     features = create_classifier_features(

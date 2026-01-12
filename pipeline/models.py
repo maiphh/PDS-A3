@@ -15,7 +15,8 @@ from xgboost import XGBClassifier
 from feature_engineering import ( 
     create_classifier_features,
     create_classifier_features_with_clustered,
-    prepare_classifier_training_data
+    prepare_classifier_training_data,
+    get_kmeans
 )
 from logger import setup_logger
 
@@ -344,8 +345,8 @@ class DecisionTreeClusteredRecommender(BaseRecommender):
     """
 
     def __init__(self, n_factors: int = 20, n_neg_samples: int = 5, 
-                 n_clusters: int = 5, seed: int = 42):
-        super().__init__(f"DecisionTreeClustered(f={n_factors},k={n_clusters})")
+                 n_clusters: int = None, seed: int = 42):
+        super().__init__(f"DecisionTreeClustered(f={n_factors})")
         self.n_factors = n_factors
         self.n_neg_samples = n_neg_samples
         self.n_clusters = n_clusters
@@ -407,8 +408,10 @@ class DecisionTreeClusteredRecommender(BaseRecommender):
             return []
 
         # Compute cluster label for this user using raw interaction vector
-        from feature_engineering import get_kmeans
+
         kmeans = get_kmeans(self.train_matrix, n_clusters=self.n_clusters, seed=self.seed)
+        # Get actual n_clusters from trained model (important when elbow method was used)
+        actual_n_clusters = kmeans.n_clusters
         # Cast to float64 to match KMeans expected dtype (const double)
         user_vector_cast = user_vector.astype(np.float64)
         cluster_label = kmeans.predict(user_vector_cast.reshape(1, -1))[0]
@@ -416,7 +419,7 @@ class DecisionTreeClusteredRecommender(BaseRecommender):
         X_pred = np.array([
             create_classifier_features_with_clustered(
                 user_vector, self.train_matrix, self.item_factors, self.svd, item_idx,
-                cluster_label=cluster_label, n_clusters=self.n_clusters
+                cluster_label=cluster_label, n_clusters=actual_n_clusters
             )
             for item_idx in candidate_items
         ])
@@ -431,8 +434,8 @@ class XGBoostClusteredRecommender(BaseRecommender):
     """
 
     def __init__(self, n_factors: int = 20, n_neg_samples: int = 5, 
-                 n_clusters: int = 5, seed: int = 42):
-        super().__init__(f"XGBoostClustered(f={n_factors},k={n_clusters})")
+                 n_clusters: int = None, seed: int = 42):
+        super().__init__(f"XGBoostClustered(f={n_factors})")
         self.n_factors = n_factors
         self.n_neg_samples = n_neg_samples
         self.n_clusters = n_clusters
@@ -494,8 +497,9 @@ class XGBoostClusteredRecommender(BaseRecommender):
             return []
 
         # Compute cluster label for this user using raw interaction vector
-        from feature_engineering import get_kmeans
         kmeans = get_kmeans(self.train_matrix, n_clusters=self.n_clusters, seed=self.seed)
+        # Get actual n_clusters from trained model (important when elbow method was used)
+        actual_n_clusters = kmeans.n_clusters
         # Cast to float64 to match KMeans expected dtype (const double)
         user_vector_cast = user_vector.astype(np.float64)
         cluster_label = kmeans.predict(user_vector_cast.reshape(1, -1))[0]
@@ -503,7 +507,7 @@ class XGBoostClusteredRecommender(BaseRecommender):
         X_pred = np.array([
             create_classifier_features_with_clustered(
                 user_vector, self.train_matrix, self.item_factors, self.svd, item_idx,
-                cluster_label=cluster_label, n_clusters=self.n_clusters
+                cluster_label=cluster_label, n_clusters=actual_n_clusters
             )
             for item_idx in candidate_items
         ])

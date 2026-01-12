@@ -39,9 +39,12 @@ def evaluate_classifiers(models: list, train_matrix: np.ndarray, test_data: dict
         
         # Pre-compute cluster labels if needed (using raw user vectors)
         user_cluster_labels = None
+        actual_n_clusters = None
         if is_clustered:
             kmeans = get_kmeans(model.train_matrix, n_clusters=model.n_clusters, seed=model.seed)
             user_cluster_labels = kmeans.labels_
+            # Get actual n_clusters from trained model (important when elbow method was used)
+            actual_n_clusters = kmeans.n_clusters
 
         np.random.seed(model.seed)
         X_test, y_test = [], []
@@ -54,7 +57,7 @@ def evaluate_classifiers(models: list, train_matrix: np.ndarray, test_data: dict
                 if is_clustered:
                     X_test.append(create_classifier_features_with_clustered(
                         user_vector, model.train_matrix, model.item_factors, model.svd, item_idx,
-                        cluster_label=user_cluster_labels[user_idx], n_clusters=model.n_clusters
+                        cluster_label=user_cluster_labels[user_idx], n_clusters=actual_n_clusters
                     ))
                 else:
                     X_test.append(create_classifier_features(
@@ -76,7 +79,7 @@ def evaluate_classifiers(models: list, train_matrix: np.ndarray, test_data: dict
                     if is_clustered:
                         X_test.append(create_classifier_features_with_clustered(
                             user_vector, model.train_matrix, model.item_factors, model.svd, item_idx,
-                            cluster_label=user_cluster_labels[user_idx], n_clusters=model.n_clusters
+                            cluster_label=user_cluster_labels[user_idx], n_clusters=actual_n_clusters
                         ))
                     else:
                         X_test.append(create_classifier_features(
