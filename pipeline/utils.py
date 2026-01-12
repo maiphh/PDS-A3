@@ -1,6 +1,6 @@
 from models import *
 
-def load_all_models(models_dir: str = "pipeline/output/models") -> list:
+def load_all_models(train_matrix: np.ndarray = None, models_dir: str = "pipeline/output/models") -> list:
     """
     Load all saved models from the output directory.
     """

@@ -77,7 +77,7 @@ def main():
     train_matrix, test_data = prepare_train_test_from_wide(wide_df)
     
     # Initialize models
-    models = load_all_models()
+    models = load_all_models(train_matrix=train_matrix)
     
     # ==========================================================================
     # Task 4: Evaluation
