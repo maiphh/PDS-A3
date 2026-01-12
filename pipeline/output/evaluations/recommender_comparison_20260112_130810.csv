@@ -1,0 +1,10 @@
+Model,precision@5,recall@5,hit_rate@5,ndcg@5
+Popularity,0.1036,0.5,0.51,0.3697
+Random,0.0044,0.022,0.022,0.0105
+UserCF(k=50),0.0688,0.3177,0.33,0.2524
+ItemCF(k=50),0.122,0.5858,0.6,0.4263
+XGBoost(f=20),0.032,0.1505,0.156,0.1084
+"XGBoostClustered(f=20,k=5)",0.0344,0.164,0.17,0.1106
+DecisionTree(f=20),0.046,0.221,0.23,0.1355
+"DecisionTreeClustered(f=20,k=5)",0.0448,0.216,0.224,0.1338
+VotingEnsemble,0.0936,0.451,0.464,0.3407
