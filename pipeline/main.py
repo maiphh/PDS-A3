@@ -10,11 +10,6 @@ from data_loader import (
     prepare_train_test_from_wide, create_user_activity_features,
     create_page_popularity_features
 )
-from models import (
-    PopularityRecommender, RandomRecommender, UserBasedCF, 
-    ItemBasedCF, XGBoostRecommender, DecisionTreeRecommender,
-    DecisionTreeClusteredRecommender
-)
 from evaluation import evaluate_classifiers, evaluate_recommenders
 
 from utils import load_all_models

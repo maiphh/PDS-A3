@@ -11,6 +11,7 @@ def load_all_models(train_matrix: np.ndarray = None, models_dir: str = "pipeline
         UserBasedCF(k=50),
         ItemBasedCF(k=50),
         XGBoostRecommender(n_factors=20, n_neg_samples=1),
+        XGBoostClusteredRecommender(n_factors=20, n_neg_samples=1),
         DecisionTreeRecommender(n_factors=20, n_neg_samples=1),
         DecisionTreeClusteredRecommender(n_factors=20, n_neg_samples=1),
     ]
@@ -32,7 +33,7 @@ def load_all_models(train_matrix: np.ndarray = None, models_dir: str = "pipeline
     models = trained_models
 
     # Ensemble model
-    ensemble_models = [models[2], models[3], models[4], models[5], models[6]]
+    ensemble_models = [models[2], models[3], models[4], models[5], models[6], models[7]]
     toppop_model = models[0]
     ensemble = VotingEnsembleRecommender(base_models=ensemble_models, popularity_fallback=toppop_model, cold_start_threshold=3)
     ensemble.fit(train_matrix)

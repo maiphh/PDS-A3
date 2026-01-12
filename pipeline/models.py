@@ -425,6 +425,93 @@ class DecisionTreeClusteredRecommender(BaseRecommender):
         return [candidate_items[i] for i in top_indices]
 
 
+class XGBoostClusteredRecommender(BaseRecommender):
+    """
+    XGBoost-based recommender with KMeans clustering.
+    """
+
+    def __init__(self, n_factors: int = 20, n_neg_samples: int = 5, 
+                 n_clusters: int = 5, seed: int = 42):
+        super().__init__(f"XGBoostClustered(f={n_factors},k={n_clusters})")
+        self.n_factors = n_factors
+        self.n_neg_samples = n_neg_samples
+        self.n_clusters = n_clusters
+        self.seed = seed
+        self.model = None
+        self.best_params_ = None
+
+    def fit(self, train_matrix: np.ndarray, tune: bool = True, param_dist: dict = None, 
+            cv: int = 3, n_iter: int = 10):
+        """
+        Train the model with clustered features.
+
+        Parameters:
+        -----------
+        train_matrix : np.ndarray
+        tune : bool - Whether to perform hyperparameter tuning
+        param_dist : dict - Parameter distributions for RandomizedSearchCV
+        cv : int - Number of cross-validation folds
+        n_iter : int - Number of parameter combinations to try
+        """
+        self.train_matrix = train_matrix
+        
+        # Use shared utility function with clustering enabled
+        X_train, y_train, self.svd, self.item_factors = prepare_classifier_training_data(
+            train_matrix, self.n_factors, self.n_neg_samples, self.seed,
+            is_clustered=True, n_clusters=self.n_clusters
+        )
+
+        if tune:
+            if param_dist is None:
+                param_dist = {
+                    'n_estimators': [50, 100],
+                    'max_depth': [3, 5],
+                    'learning_rate': [0.1, 0.2],
+                }
+
+            logger.info(f"Tuning {self.name} with RandomizedSearchCV (n_iter={n_iter})...")
+            base_model = XGBClassifier(random_state=self.seed, eval_metric='logloss')
+            random_search = RandomizedSearchCV(
+                base_model, param_dist, n_iter=n_iter, cv=cv,
+                scoring='roc_auc', n_jobs=-1, verbose=1, random_state=self.seed
+            )
+            random_search.fit(X_train, y_train)
+            self.model = random_search.best_estimator_
+            self.best_params_ = random_search.best_params_
+            logger.info(f"Best params: {self.best_params_}")
+            logger.info(f"Best CV score: {random_search.best_score_:.4f}")
+        else:
+            self.model = XGBClassifier(random_state=self.seed, eval_metric='logloss')
+            self.model.fit(X_train, y_train)
+
+        return self
+
+    def recommend(self, user_vector: np.ndarray, n: int = 10) -> list:
+        known_items = set(np.where(user_vector > 0)[0])
+        candidate_items = [i for i in range(self.train_matrix.shape[1]) if i not in known_items]
+
+        if len(candidate_items) == 0:
+            return []
+
+        # Compute cluster label for this user using raw interaction vector
+        from feature_engineering import get_kmeans
+        kmeans = get_kmeans(self.train_matrix, n_clusters=self.n_clusters, seed=self.seed)
+        # Cast to same dtype as train_matrix to avoid KMeans dtype mismatch
+        user_vector_cast = user_vector.astype(self.train_matrix.dtype)
+        cluster_label = kmeans.predict(user_vector_cast.reshape(1, -1))[0]
+
+        X_pred = np.array([
+            create_classifier_features_with_clustered(
+                user_vector, self.train_matrix, self.item_factors, self.svd, item_idx,
+                cluster_label=cluster_label, n_clusters=self.n_clusters
+            )
+            for item_idx in candidate_items
+        ])
+        scores = self.model.predict_proba(X_pred)[:, 1]
+        top_indices = np.argsort(scores)[::-1][:n]
+        return [candidate_items[i] for i in top_indices]
+
+
 class VotingEnsembleRecommender(BaseRecommender):
     """
     Voting Ensemble Recommender using weighted reciprocal rank voting.
