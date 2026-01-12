@@ -127,7 +127,8 @@ def main():
         return
     
     # Load models
-    models = load_all_models()
+    train_matrix = train_wide_df.values.astype(np.float64)
+    models = load_all_models(train_matrix)
     if not models:
         return
     sample_model = models[0]

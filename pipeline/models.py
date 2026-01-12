@@ -189,28 +189,6 @@ class ItemBasedCF(BaseRecommender):
         return np.argsort(scores)[::-1][:n].tolist()
 
 
-class SVDRecommender(BaseRecommender):
-    """Matrix Factorization using SVD."""
-
-    def __init__(self, n_factors: int = 50):
-        super().__init__(f"SVD(f={n_factors})")
-        self.n_factors = n_factors
-
-    def fit(self, train_matrix: np.ndarray):
-        self.train_matrix = train_matrix
-        self.svd = TruncatedSVD(n_components=min(self.n_factors, min(train_matrix.shape) - 1))
-        self.svd.fit(train_matrix)
-        return self
-
-    def recommend(self, user_vector: np.ndarray, n: int = 10) -> list:
-        # Transform user vector to latent space and predict scores
-        user_latent = self.svd.transform(user_vector.reshape(1, -1))
-        scores = (user_latent @ self.svd.components_)[0]
-        known = np.where(user_vector > 0)[0]
-        scores[known] = -np.inf
-        return np.argsort(scores)[::-1][:n].tolist()
-
-
 class XGBoostRecommender(BaseRecommender):
     """XGBoost-based recommender using binary classification."""
 
@@ -449,4 +427,103 @@ class DecisionTreeClusteredRecommender(BaseRecommender):
         scores = self.model.predict_proba(X_pred)[:, 1]
         top_indices = np.argsort(scores)[::-1][:n]
         return [candidate_items[i] for i in top_indices]
+
+
+class VotingEnsembleRecommender(BaseRecommender):
+    """
+    Voting Ensemble Recommender using weighted reciprocal rank voting.
+    """
+
+    def __init__(self, base_models: list[BaseRecommender], popularity_fallback: BaseRecommender,
+                 cold_start_threshold: int = 3, weights: list = None):
+        model_names = [m.name for m in base_models]
+        super().__init__(f"VotingEnsemble({'+'.join(model_names)})")
+        
+        self.base_models = base_models
+        self.popularity_fallback = popularity_fallback
+        self.cold_start_threshold = cold_start_threshold
+        
+        # Set weights (default to equal weights if not provided)
+        if weights is None:
+            self.weights = [1.0] * len(base_models)
+        else:
+            if len(weights) != len(base_models):
+                raise ValueError("Number of weights must match number of base models")
+            self.weights = weights
+        
+        # Normalize weights
+        weight_sum = sum(self.weights)
+        self.weights = [w / weight_sum for w in self.weights]
+
+    def fit(self, train_matrix: np.ndarray):
+        """
+        Store reference to training matrix.
+        
+        Note: This model expects pre-trained base models and popularity fallback.
+        The base models should already be fitted before being passed to this ensemble.
+        """
+        self.train_matrix = train_matrix
+        logger.info(f"VotingEnsembleRecommender initialized with {len(self.base_models)} base models")
+        logger.info(f"Cold-start threshold: {self.cold_start_threshold}")
+        logger.info(f"Base models: {[m.name for m in self.base_models]}")
+        logger.info(f"Model weights: {self.weights}")
+        return self
+
+    def _is_cold_start_user(self, user_vector: np.ndarray) -> bool:
+        """Check if user has fewer interactions than cold-start threshold."""
+        n_interactions = np.sum(user_vector > 0)
+        return n_interactions < self.cold_start_threshold
+
+    def _reciprocal_rank_fusion(self, rankings: list, n: int) -> list:
+        """
+        Combine multiple rankings using weighted reciprocal rank fusion.
+        """
+        # k parameter for reciprocal rank (standard is 60)
+        k = 60
+        
+        # Aggregate scores using weighted reciprocal rank fusion
+        item_scores = {}
+        
+        for model_idx, ranking in enumerate(rankings):
+            weight = self.weights[model_idx]
+            for rank, item_idx in enumerate(ranking):
+                if item_idx not in item_scores:
+                    item_scores[item_idx] = 0.0
+                # Reciprocal rank formula: weight * 1 / (k + rank)
+                item_scores[item_idx] += weight * (1.0 / (k + rank + 1))
+        
+        # Sort items by aggregated score (descending)
+        sorted_items = sorted(item_scores.items(), key=lambda x: x[1], reverse=True)
+        
+        return [item_idx for item_idx, _ in sorted_items[:n]]
+
+    def recommend(self, user_vector: np.ndarray, n: int = 10) -> list:
+        """
+        Generate top-n recommendations.
+        """
+        # Check for cold-start user
+        if self._is_cold_start_user(user_vector):
+            logger.info(f"Cold-start user detected, using popularity fallback")
+            return self.popularity_fallback.recommend(user_vector, n)
+        
+        # Get recommendations from each base model
+        # Request more than n to allow for diversity in fusion
+        n_candidates = min(n * 3, self.train_matrix.shape[1])
+        
+        rankings = []
+        for model in self.base_models:
+            try:
+                model_recs = model.recommend(user_vector, n_candidates)
+                rankings.append(model_recs)
+            except Exception as e:
+                logger.warning(f"Model {model.name} failed to generate recommendations: {e}")
+                continue
+        
+        # If all models failed, fall back to popularity
+        if len(rankings) == 0:
+            logger.warning("All base models failed, using popularity fallback")
+            return self.popularity_fallback.recommend(user_vector, n)
+        
+        # Combine rankings using reciprocal rank fusion
+        return self._reciprocal_rank_fusion(rankings, n)
 
