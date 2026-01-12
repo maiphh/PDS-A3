@@ -24,6 +24,7 @@ The pipeline generates the following outputs:
 - `output/models/` - Trained model files
 - `output/logs/` - Execution logs
 - `output/evaluations/` - Evaluation metrics and results
+- `output/eda/` - EDA plots
 
 ## Demo
 

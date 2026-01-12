@@ -11,6 +11,7 @@ from data_loader import (
     create_page_popularity_features
 )
 from evaluation import evaluate_classifiers, evaluate_recommenders
+from eda import eda
 
 from utils import load_all_models
 
@@ -48,6 +49,14 @@ def main():
     # Check for duplicates
     duplicates = df.duplicated(subset=["case_id", "attr_id"]).sum()
     logger.info(f"Duplicate user-page interactions: {duplicates}")
+    
+    # ==========================================================================
+    # EDA
+    # ==========================================================================
+    logger.info("=" * 60)
+    logger.info("Exploratory Data Analysis")
+    logger.info("=" * 60)
+    eda(df, attr_df)
     
     # ==========================================================================
     # Task 2: Feature Engineering
