@@ -91,13 +91,15 @@ def display_recommendations(models: list, user_vector: np.ndarray,
             print(f"\n{model.name}: Error - {e}")
 
 
-def display_menu():
+def display_menu(sample_case_ids: list = None):
     """Display the main menu."""
     print("\n" + "-" * 50)
     print("RECOMMENDER DEMO")
     print("-" * 50)
     print("Commands:")
-    print("  [number]  - Enter a test user index (0 to N-1)")
+    print("  [case_id] - Enter a test user case_id")
+    if sample_case_ids:
+        print(f"              (e.g., {', '.join(map(str, sample_case_ids[:3]))}, ...)")
     print("  r         - Random test user")
     print("  c         - Create custom user history")
     print("  q         - Quit")
@@ -143,23 +145,28 @@ def main():
     test_user_ids = test_wide_df.index.tolist()
     n_users = len(test_users)
     
+    # Create case_id to index mapping for quick lookup
+    case_id_to_idx = {case_id: idx for idx, case_id in enumerate(test_user_ids)}
+    
     print(f"\nReady! {n_users} test users available.")
+    print(f"Sample case_ids: {test_user_ids[:5]}")
     
     # Main loop
     while True:
-        display_menu()
-        user_input = input("Enter command: ").strip().lower()
+        display_menu(sample_case_ids=test_user_ids[:5])
+        user_input = input("Enter command: ").strip()
         
         if user_input == 'q':
             print("Goodbye!")
             break
         
-        elif user_input == 'r':
+        elif user_input.lower() == 'r':
             # Random user
             idx = random.randint(0, n_users - 1)
-            print(f"\nSelected random user index: {idx} (User ID: {test_user_ids[idx]})")
+            case_id = test_user_ids[idx]
+            print(f"\nSelected random user (Case ID: {case_id})")
         
-        elif user_input == 'c':
+        elif user_input.lower() == 'c':
             # Create custom user history
             print("\nAvailable item IDs are numeric (e.g., 1000, 1001, 1002, ...)")
             items_input = input("Enter item IDs separated by comma: ").strip()
@@ -211,12 +218,15 @@ def main():
             display_recommendations(models, user_vector, idx_to_item, train_attr_df, n=5)
             continue
         
-        elif user_input.isdigit():
-            idx = int(user_input)
-            if 0 <= idx < n_users:
-                print(f"\nSelected user index: {idx} (User ID: {test_user_ids[idx]})")
+        elif user_input.isdigit() or (user_input.startswith('-') and user_input[1:].isdigit()):
+            # Accept case_id (which can be negative or positive integer)
+            case_id = int(user_input)
+            if case_id in case_id_to_idx:
+                idx = case_id_to_idx[case_id]
+                print(f"\nSelected user (Case ID: {case_id})")
             else:
-                print(f"Invalid index. Please enter 0 to {n_users - 1}")
+                print(f"Invalid case_id: {case_id}. Please enter a valid case_id from the test set.")
+                print(f"Sample valid case_ids: {test_user_ids[:5]}")
                 continue
         
         else:

@@ -3,6 +3,7 @@
 A machine learning pipeline for building and evaluating recommender systems.
 
 ## Installation
+Python 3.10.6
 
 ```bash
 pip install -r requirements.txt
@@ -36,7 +37,7 @@ python demo.py
 
 | Command | Description |
 |---------|-------------|
-| `[number]` | Enter a test user index (0 to N-1) to view recommendations for that user |
+| `[case_id]` | Enter a test user case_id (e.g., 10001, 10002, ...) to view recommendations |
 | `r` | Select a random test user |
 | `c` | Create a custom user history by entering item IDs |
 | `q` | Quit the demo |

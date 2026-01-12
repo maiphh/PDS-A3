@@ -47,7 +47,8 @@ def get_kmeans(X: np.ndarray = None, n_clusters: int = 5, seed: int = 42) -> KMe
     
     logger.info(f"Training KMeans with n_clusters={n_clusters}...")
     _kmeans_model = KMeans(n_clusters=n_clusters, random_state=seed, n_init=10)
-    _kmeans_model.fit(X)
+    # Ensure float64 dtype to prevent "const double" mismatch errors
+    _kmeans_model.fit(X.astype(np.float64))
     logger.info(f"KMeans trained. Cluster distribution: {np.bincount(_kmeans_model.labels_)}")
     
     # Save model to disk

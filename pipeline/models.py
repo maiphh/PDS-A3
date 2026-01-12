@@ -409,8 +409,8 @@ class DecisionTreeClusteredRecommender(BaseRecommender):
         # Compute cluster label for this user using raw interaction vector
         from feature_engineering import get_kmeans
         kmeans = get_kmeans(self.train_matrix, n_clusters=self.n_clusters, seed=self.seed)
-        # Cast to same dtype as train_matrix to avoid KMeans dtype mismatch
-        user_vector_cast = user_vector.astype(self.train_matrix.dtype)
+        # Cast to float64 to match KMeans expected dtype (const double)
+        user_vector_cast = user_vector.astype(np.float64)
         cluster_label = kmeans.predict(user_vector_cast.reshape(1, -1))[0]
 
         X_pred = np.array([
@@ -496,8 +496,8 @@ class XGBoostClusteredRecommender(BaseRecommender):
         # Compute cluster label for this user using raw interaction vector
         from feature_engineering import get_kmeans
         kmeans = get_kmeans(self.train_matrix, n_clusters=self.n_clusters, seed=self.seed)
-        # Cast to same dtype as train_matrix to avoid KMeans dtype mismatch
-        user_vector_cast = user_vector.astype(self.train_matrix.dtype)
+        # Cast to float64 to match KMeans expected dtype (const double)
+        user_vector_cast = user_vector.astype(np.float64)
         cluster_label = kmeans.predict(user_vector_cast.reshape(1, -1))[0]
 
         X_pred = np.array([
