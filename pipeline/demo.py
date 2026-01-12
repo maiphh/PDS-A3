@@ -99,6 +99,7 @@ def display_menu():
     print("Commands:")
     print("  [number]  - Enter a test user index (0 to N-1)")
     print("  r         - Random test user")
+    print("  c         - Create custom user history")
     print("  q         - Quit")
     print("-" * 50)
 
@@ -109,8 +110,6 @@ def main():
     print("RECOMMENDER SYSTEM DEMO")
     print("=" * 70)
     
-    # Load training data (for item mappings and attribute info)
-    # Models are trained on training data, so item indices correspond to training data columns
     try:
         train_df, train_attr_df, train_wide_df = load_data(TRAIN_DATA_FILE)
     except FileNotFoundError as e:
@@ -159,6 +158,58 @@ def main():
             # Random user
             idx = random.randint(0, n_users - 1)
             print(f"\nSelected random user index: {idx} (User ID: {test_user_ids[idx]})")
+        
+        elif user_input == 'c':
+            # Create custom user history
+            print("\nAvailable item IDs are numeric (e.g., 1000, 1001, 1002, ...)")
+            items_input = input("Enter item IDs separated by comma: ").strip()
+            
+            if not items_input:
+                print("No items entered. Try again.")
+                continue
+            
+            # Parse item IDs from input
+            try:
+                custom_items = [int(item.strip()) for item in items_input.split(',') if item.strip()]
+            except ValueError:
+                print("Invalid input. Please enter numeric item IDs separated by comma.")
+                continue
+            
+            if not custom_items:
+                print("No valid items entered. Try again.")
+                continue
+            
+            # Filter to valid items only
+            valid_items = [item_id for item_id in custom_items if item_id in item_to_idx]
+            invalid_items = [item_id for item_id in custom_items if item_id not in item_to_idx]
+            
+            if invalid_items:
+                print(f"Warning: The following item IDs are not in the dataset: {invalid_items}")
+            
+            if not valid_items:
+                print("No valid items found. Try again.")
+                continue
+            
+            # Display custom user history
+            print(f"\nCustom User History ({len(valid_items)} pages):")
+            visited_info = get_item_names(
+                [item_to_idx.get(item_id, -1) for item_id in valid_items[:5]], 
+                idx_to_item, train_attr_df
+            )
+            for attr_id, title, url in visited_info:
+                print(f"   • [{attr_id}] {title}")
+            if len(valid_items) > 5:
+                print(f"   ... and {len(valid_items) - 5} more")
+            
+            # Create user vector for custom history
+            user_vector = np.zeros(n_items, dtype=np.float64)
+            for item_id in valid_items:
+                if item_id in item_to_idx and item_to_idx[item_id] < n_items:
+                    user_vector[item_to_idx[item_id]] = 1.0
+            
+            # Get and display recommendations
+            display_recommendations(models, user_vector, idx_to_item, train_attr_df, n=5)
+            continue
         
         elif user_input.isdigit():
             idx = int(user_input)
